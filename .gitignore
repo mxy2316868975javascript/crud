@@ -1,0 +1,8 @@
+.env
+/crud
+/api
+/seed
+/openapi3
+coverage.out
+.DS_Store
+.zcode/

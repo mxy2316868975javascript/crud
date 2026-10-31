@@ -1,0 +1,730 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "CET-4 词汇量测试后端：词库增删改查、四选一测试、判分和健康检查。测试为匿名，凭测试 ID 提交答案；估算公式为：正确题数 ÷ 题目总数 × 创建测试时的词库总量，结果四舍五入。",
+        "title": "CET-4 词汇量测试接口",
+        "contact": {},
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/api/v1/tests": {
+            "post": {
+                "description": "随机抽题，每个题目有 4 个选项。请求体可省略，count 默认 20；词库不足时返回 400。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tests"
+                ],
+                "summary": "创建测试并抽题",
+                "parameters": [
+                    {
+                        "description": "题目数量",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.CreateTestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Test"
+                        },
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "新测试的路径"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tests/{id}": {
+            "get": {
+                "description": "未完成时返回题目；完成后额外返回 correct_count、estimated_vocabulary 和 completed_at。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tests"
+                ],
+                "summary": "查询测试",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "测试 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Test"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tests/{id}/answers": {
+            "post": {
+                "description": "答案必须覆盖该测试的全部题目，word_id 不能重复，selected_index 必须在 0-3。已完成的测试再次提交返回 409。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tests"
+                ],
+                "summary": "提交答案并判分",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "测试 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "答案",
+                        "name": "answers",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.SubmitAnswersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Test"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/words": {
+            "get": {
+                "description": "按 id 升序返回，可按 level 过滤。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Words"
+                ],
+                "summary": "分页列出词汇",
+                "parameters": [
+                    {
+                        "enum": [
+                            1,
+                            2,
+                            3,
+                            4,
+                            5
+                        ],
+                        "type": "integer",
+                        "description": "按难度过滤",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 200,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 50,
+                        "description": "每页数量",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "偏移量",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.WordListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "单词唯一，重复创建返回 409。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Words"
+                ],
+                "summary": "新增词汇",
+                "parameters": [
+                    {
+                        "description": "词汇",
+                        "name": "word",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.WordInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Word"
+                        },
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "新词汇的路径"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/words/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Words"
+                ],
+                "summary": "查询单个词汇",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "词汇 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Word"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "必须提供 word、meaning、level 三个字段。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Words"
+                ],
+                "summary": "全量替换词汇",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "词汇 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "词汇",
+                        "name": "word",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.WordInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Word"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "词汇被任何测试引用时返回 409。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Words"
+                ],
+                "summary": "删除词汇",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "词汇 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "删除成功"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "至少提供一个字段，只更新传入的字段。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Words"
+                ],
+                "summary": "局部更新词汇",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "词汇 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "要更新的字段",
+                        "name": "word",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.WordPatchInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Word"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/healthz": {
+            "get": {
+                "description": "检查进程和数据库连通性。数据库不可用时返回 503。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "健康检查",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.HealthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.HealthResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "domain.Answer": {
+            "type": "object",
+            "properties": {
+                "selected_index": {
+                    "description": "用户选择的选项下标 0-3",
+                    "type": "integer",
+                    "maximum": 3,
+                    "minimum": 0,
+                    "example": 0
+                },
+                "word_id": {
+                    "description": "题目对应的词汇 ID",
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "domain.Question": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "description": "四个选项，正确答案下标不返回",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "word": {
+                    "description": "题目单词",
+                    "type": "string",
+                    "example": "abandon"
+                },
+                "word_id": {
+                    "description": "词汇 ID",
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "domain.Test": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "description": "是否已提交答案",
+                    "type": "boolean",
+                    "example": false
+                },
+                "completed_at": {
+                    "description": "提交时间，未完成时为 null",
+                    "type": "string"
+                },
+                "correct_count": {
+                    "description": "答对题数，未完成时为 null",
+                    "type": "integer",
+                    "example": 15
+                },
+                "estimated_vocabulary": {
+                    "description": "估算词汇量，未完成时为 null",
+                    "type": "integer",
+                    "example": 2887
+                },
+                "id": {
+                    "description": "测试 ID",
+                    "type": "integer",
+                    "example": 1
+                },
+                "question_count": {
+                    "description": "题目数量",
+                    "type": "integer",
+                    "example": 20
+                },
+                "questions": {
+                    "description": "题目列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Question"
+                    }
+                }
+            }
+        },
+        "domain.Word": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "词汇 ID",
+                    "type": "integer",
+                    "example": 1
+                },
+                "level": {
+                    "description": "难度等级：1 最常用，5 最生僻",
+                    "type": "integer",
+                    "example": 1
+                },
+                "meaning": {
+                    "description": "中文释义",
+                    "type": "string",
+                    "example": "v. 放弃；抛弃"
+                },
+                "word": {
+                    "description": "单词",
+                    "type": "string",
+                    "example": "abandon"
+                }
+            }
+        },
+        "httpapi.CreateTestRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "题目数量，省略或为 0 时默认 20",
+                    "type": "integer",
+                    "example": 20
+                }
+            }
+        },
+        "httpapi.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "错误信息",
+                    "type": "string",
+                    "example": "not found"
+                }
+            }
+        },
+        "httpapi.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "description": "ok 或 unavailable",
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "httpapi.SubmitAnswersRequest": {
+            "type": "object",
+            "properties": {
+                "answers": {
+                    "description": "答案列表，必须覆盖全部题目",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Answer"
+                    }
+                }
+            }
+        },
+        "httpapi.WordInput": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "description": "难度等级：1-5",
+                    "type": "integer",
+                    "example": 1
+                },
+                "meaning": {
+                    "description": "中文释义",
+                    "type": "string",
+                    "example": "v. 放弃；抛弃"
+                },
+                "word": {
+                    "description": "单词",
+                    "type": "string",
+                    "example": "abandon"
+                }
+            }
+        },
+        "httpapi.WordListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "当前页词汇",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Word"
+                    }
+                },
+                "total": {
+                    "description": "符合条件的总数",
+                    "type": "integer",
+                    "example": 3849
+                }
+            }
+        },
+        "httpapi.WordPatchInput": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "description": "新难度等级：1-5",
+                    "type": "integer",
+                    "example": 1
+                },
+                "meaning": {
+                    "description": "新释义",
+                    "type": "string",
+                    "example": "v. 放弃；抛弃"
+                },
+                "word": {
+                    "description": "新单词",
+                    "type": "string",
+                    "example": "abandon"
+                }
+            }
+        }
+    }
+}

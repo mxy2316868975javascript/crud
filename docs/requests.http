@@ -1,0 +1,61 @@
+@baseUrl = http://localhost:8080
+@wordId = 1
+@testId = 1
+
+### 健康检查：前端启动时可以先探活
+GET {{baseUrl}}/healthz
+
+### 词库列表：对应列表页
+GET {{baseUrl}}/api/v1/words?level=1&limit=5&offset=0
+
+### 新增词汇：对应“新增”表单
+POST {{baseUrl}}/api/v1/words
+Content-Type: application/json
+
+{
+  "word": "demo-word-1",
+  "meaning": "n. 演示用词",
+  "level": 1
+}
+
+### 全量更新词汇：对应“编辑”表单
+PUT {{baseUrl}}/api/v1/words/{{wordId}}
+Content-Type: application/json
+
+{
+  "word": "demo-word-1",
+  "meaning": "n. 演示用词（已更新）",
+  "level": 2
+}
+
+### 局部更新词汇：只改一个字段
+PATCH {{baseUrl}}/api/v1/words/{{wordId}}
+Content-Type: application/json
+
+{
+  "level": 3
+}
+
+### 删除词汇：对应“删除”按钮
+DELETE {{baseUrl}}/api/v1/words/{{wordId}}
+
+### 创建测试：count=1 是为了让下面的答案示例可以直接运行
+POST {{baseUrl}}/api/v1/tests
+Content-Type: application/json
+
+{
+  "count": 1
+}
+
+### 提交答案：把 testId 换成上一步返回的 id，word_id 换成题目里的 word_id
+POST {{baseUrl}}/api/v1/tests/{{testId}}/answers
+Content-Type: application/json
+
+{
+  "answers": [
+    { "word_id": 1, "selected_index": 0 }
+  ]
+}
+
+### 查询测试：查看是否完成以及分数
+GET {{baseUrl}}/api/v1/tests/{{testId}}
