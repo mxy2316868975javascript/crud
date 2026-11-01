@@ -1,6 +1,14 @@
 package domain
 
-import "time"
+import (
+	"math"
+	"time"
+)
+
+const (
+	minQuestionCount = 1
+	maxQuestionCount = 100
+)
 
 // Question 是一道四选一题目，Options 中不包含正确选项下标。
 type Question struct {
@@ -24,4 +32,54 @@ type Test struct {
 type Answer struct {
 	WordID        int64 `json:"word_id" example:"1"`                                // 题目对应的词汇 ID
 	SelectedIndex int   `json:"selected_index" example:"0" minimum:"0" maximum:"3"` // 用户选择的选项下标 0-3
+}
+
+// ValidateQuestionCount 校验题目数量是否在 1–100 之间。
+func ValidateQuestionCount(count int) error {
+	if count < minQuestionCount || count > maxQuestionCount {
+		return &ValidationError{Message: "count must be between 1 and 100"}
+	}
+	return nil
+}
+
+// ValidateAnswerShape 校验答案下标和重复的 word_id。
+func ValidateAnswerShape(answers []Answer) error {
+	seenWordIDs := make(map[int64]bool, len(answers))
+	for _, answer := range answers {
+		if answer.SelectedIndex < 0 || answer.SelectedIndex > 3 || seenWordIDs[answer.WordID] {
+			return ErrInvalidAnswers
+		}
+		seenWordIDs[answer.WordID] = true
+	}
+	return nil
+}
+
+// ValidateAnswerCoverage 校验答案是否正好覆盖给定的题目集合。
+func ValidateAnswerCoverage(answers []Answer, expectedWordIDs []int64) error {
+	if len(answers) != len(expectedWordIDs) {
+		return ErrInvalidAnswers
+	}
+
+	expected := make(map[int64]bool, len(expectedWordIDs))
+	for _, wordID := range expectedWordIDs {
+		expected[wordID] = true
+	}
+
+	seenWordIDs := make(map[int64]bool, len(answers))
+	for _, answer := range answers {
+		if answer.SelectedIndex < 0 || answer.SelectedIndex > 3 ||
+			!expected[answer.WordID] || seenWordIDs[answer.WordID] {
+			return ErrInvalidAnswers
+		}
+		seenWordIDs[answer.WordID] = true
+	}
+	return nil
+}
+
+// EstimateVocabulary 按正确率估算词汇量，题目数为 0 时返回 0。
+func EstimateVocabulary(correctCount, questionCount, totalWords int) int {
+	if questionCount <= 0 {
+		return 0
+	}
+	return int(math.Round(float64(correctCount) / float64(questionCount) * float64(totalWords)))
 }

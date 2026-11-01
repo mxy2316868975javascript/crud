@@ -20,9 +20,9 @@ cmd/
   openapi3/            Swagger 2.0 -> OpenAPI 3.0
 internal/
   config/              环境变量
-  domain/              领域模型与错误
+  domain/              领域模型、纯规则与错误
   repository/postgres/ SQL、事务、schema、批量导入
-  service/             业务校验与用例、仓储接口
+  service/             用例编排、仓储接口
   httpapi/             handler、DTO、路由、Swagger 注解
   httpapi/docs/        生成的 swagger.json / openapi.json / docs.html
   seed/                内嵌 cet4.csv 与解析

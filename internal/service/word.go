@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 
 	"github.com/mxy2316868975javascript/crud/internal/domain"
 )
@@ -29,7 +28,7 @@ func (service *WordService) Get(ctx context.Context, id int64) (domain.Word, err
 
 // Create 校验并创建词汇。
 func (service *WordService) Create(ctx context.Context, word domain.Word) (domain.Word, error) {
-	normalizedWord, err := normalizeWord(word)
+	normalizedWord, err := domain.NewWord(word.Word, word.Meaning, word.Level)
 	if err != nil {
 		return domain.Word{}, err
 	}
@@ -38,7 +37,7 @@ func (service *WordService) Create(ctx context.Context, word domain.Word) (domai
 
 // Put 校验并全量替换词汇。
 func (service *WordService) Put(ctx context.Context, id int64, word domain.Word) (domain.Word, error) {
-	normalizedWord, err := normalizeWord(word)
+	normalizedWord, err := domain.NewWord(word.Word, word.Meaning, word.Level)
 	if err != nil {
 		return domain.Word{}, err
 	}
@@ -47,45 +46,14 @@ func (service *WordService) Put(ctx context.Context, id int64, word domain.Word)
 
 // Patch 校验并局部更新词汇。
 func (service *WordService) Patch(ctx context.Context, id int64, patch domain.WordPatch) (domain.Word, error) {
-	if patch.Word == nil && patch.Meaning == nil && patch.Level == nil {
-		return domain.Word{}, &domain.ValidationError{Message: "at least one field is required"}
+	normalizedPatch, err := patch.Normalize()
+	if err != nil {
+		return domain.Word{}, err
 	}
-	if patch.Word != nil {
-		value := strings.TrimSpace(*patch.Word)
-		if value == "" {
-			return domain.Word{}, &domain.ValidationError{Message: "word cannot be empty"}
-		}
-		patch.Word = &value
-	}
-	if patch.Meaning != nil {
-		value := strings.TrimSpace(*patch.Meaning)
-		if value == "" {
-			return domain.Word{}, &domain.ValidationError{Message: "meaning cannot be empty"}
-		}
-		patch.Meaning = &value
-	}
-	if patch.Level != nil && (*patch.Level < 1 || *patch.Level > 5) {
-		return domain.Word{}, &domain.ValidationError{Message: "level must be between 1 and 5"}
-	}
-	return service.repo.PatchWord(ctx, id, patch)
+	return service.repo.PatchWord(ctx, id, normalizedPatch)
 }
 
 // Delete 删除词汇。
 func (service *WordService) Delete(ctx context.Context, id int64) error {
 	return service.repo.DeleteWord(ctx, id)
-}
-
-// normalizeWord 去掉首尾空格，并校验必填字段和 level 范围。
-func normalizeWord(word domain.Word) (domain.Word, error) {
-	word.Word = strings.TrimSpace(word.Word)
-	word.Meaning = strings.TrimSpace(word.Meaning)
-	switch {
-	case word.Word == "":
-		return domain.Word{}, &domain.ValidationError{Message: "word is required"}
-	case word.Meaning == "":
-		return domain.Word{}, &domain.ValidationError{Message: "meaning is required"}
-	case word.Level < 1 || word.Level > 5:
-		return domain.Word{}, &domain.ValidationError{Message: "level must be between 1 and 5"}
-	}
-	return word, nil
 }

@@ -29,8 +29,8 @@ Swagger UI 里展开任意接口，点 **Try it out** 就能直接发请求，�
 | 页面/组件 | `internal/httpapi/words.go`、`tests.go` | 每个函数就是一个接口入口 |
 | 路由表 | `internal/httpapi/router.go` | 方法 + 路径 → handler |
 | 表单字段 / 响应 JSON | `internal/httpapi/dto.go` | 请求体、响应体的结构 |
-| 前端类型定义 | `internal/domain/word.go`、`test.go` | 后端内部和 JSON 共用的数据形状 |
-| 表单校验 / 业务规则 | `internal/service/` | 例如 level 必须是 1–5、答案必须覆盖全部题目 |
+| 前端类型定义 | `internal/domain/word.go`、`test.go` | 后端业务对象、纯规则和 JSON 形状 |
+| 表单校验 / 业务规则 | `internal/domain/` + `internal/service/` | 纯规则在 domain，例如 level 1–5；需要查库的规则在 service/repository，例如答案覆盖 |
 | 接口请求 / 数据访问 | `internal/repository/postgres/` | 真正执行 SQL 的地方 |
 | 启动和依赖装配 | `cmd/api/main.go` | 建连接池、装配 service、启动 HTTP |
 | 种子数据 | `internal/seed/` | 内嵌的 CET-4 CSV |
@@ -77,7 +77,7 @@ sequenceDiagram
 1. 路由：`internal/httpapi/router.go`
 2. handler：`internal/httpapi/words.go`
 3. 请求体：`internal/httpapi/dto.go` 的 `WordInput`
-4. 业务校验：`internal/service/word.go` 的 `Create` 和 `normalizeWord`
+4. 业务校验：`internal/domain/word.go` 的 `NewWord` / `Normalize`；service 负责调用
 5. SQL：`internal/repository/postgres/store.go` 的 `CreateWord`
 6. 数据结构：`internal/domain/word.go` 的 `Word`
 
@@ -185,9 +185,9 @@ console.log(result.correct_count, result.estimated_vocabulary);
 假设要给词汇加一个 `phonetic`（音标）字段：
 
 1. `internal/repository/postgres/schema.go`：加列和 `COMMENT ON COLUMN`。
-2. `internal/domain/word.go`：加字段、`json` tag、Swagger `example`。
+2. `internal/domain/word.go`：加字段、`json` tag、Swagger `example`；如果字段有纯规则，也加在这里。
 3. `internal/httpapi/dto.go`：如果请求或响应需要它，同步改 DTO。
-4. `internal/service/word.go`：如果字段有业务校验，加在这里。
+4. `internal/service/word.go`：如果校验需要查库或编排，加在这里。
 5. `internal/repository/postgres/store.go`：所有 `INSERT/UPDATE/SELECT` 补列。
 6. `internal/httpapi/words.go`：Swagger 注解和示例补字段。
 7. `internal/integration/api_test.go`：补创建、查询、更新的断言。
@@ -222,9 +222,9 @@ export default {
 1. `internal/httpapi/router.go`：先看有哪些接口。
 2. `internal/httpapi/words.go`、`tests.go`：每个接口怎么解析请求。
 3. `internal/httpapi/dto.go`：请求和响应的 JSON 长什么样。
-4. `internal/service/word.go`、`test.go`：业务规则。
-5. `internal/repository/postgres/store.go`：SQL 和事务。
-6. `internal/domain/word.go`、`test.go`：数据形状。
+4. `internal/domain/word.go`、`test.go`：纯规则和数据形状。
+5. `internal/service/word.go`、`test.go`：用例编排。
+6. `internal/repository/postgres/store.go`：SQL 和事务。
 7. `cmd/api/main.go`：这些层怎么被装起来。
 
 不需要先看：
@@ -238,9 +238,9 @@ export default {
 | 术语 | 在这个项目里的意思 |
 |---|---|
 | handler | 一个 HTTP 接口的入口函数，负责解析请求、调用 service、写响应 |
-| service | 业务层，负责校验和编排；不写 SQL |
-| repository | 数据访问层，负责 SQL 和事务 |
-| domain | 领域模型，前后端共用的数据形状 |
+| service | 用例编排；纯规则在 domain，SQL 在 repository |
+| repository | 数据访问层，负责 SQL、事务和依赖数据库状态的规则 |
+| domain | 业务对象、纯规则和纯计算 |
 | DTO | 专用于 HTTP 请求/响应的结构 |
 | seed | 初始化数据，这里是 CET-4 词表 |
 | Swagger / OpenAPI | 接口文档格式；`/docs` 是 Swagger UI |

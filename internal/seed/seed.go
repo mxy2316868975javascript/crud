@@ -30,6 +30,7 @@ func Import(ctx context.Context, store *postgres.Store) (int, error) {
 	}
 
 	words := make([]domain.Word, 0, 4096)
+	lineNumber := 1
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
@@ -38,11 +39,16 @@ func Import(ctx context.Context, store *postgres.Store) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		lineNumber++
 		level, err := strconv.Atoi(record[2])
-		if err != nil || level < 1 || level > 5 {
-			return 0, fmt.Errorf("invalid level %q", record[2])
+		if err != nil {
+			return 0, fmt.Errorf("line %d: invalid level %q", lineNumber, record[2])
 		}
-		words = append(words, domain.Word{Word: record[0], Meaning: record[1], Level: level})
+		word, err := domain.NewWord(record[0], record[1], level)
+		if err != nil {
+			return 0, fmt.Errorf("line %d: %w", lineNumber, err)
+		}
+		words = append(words, word)
 	}
 	return store.SeedWords(ctx, words)
 }

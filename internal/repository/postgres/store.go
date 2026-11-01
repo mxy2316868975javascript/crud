@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -389,18 +388,20 @@ func (store *Store) SubmitAnswers(ctx context.Context, attemptID int64, answers 
 	}
 
 	// 第三步：校验答案是否覆盖全部题目且没有重复。
-	if len(answers) != len(correctIndexes) {
-		return nil, domain.ErrInvalidAnswers
+	expectedWordIDs := make([]int64, 0, len(correctIndexes))
+	for wordID := range correctIndexes {
+		expectedWordIDs = append(expectedWordIDs, wordID)
+	}
+	if err := domain.ValidateAnswerShape(answers); err != nil {
+		return nil, err
+	}
+	if err := domain.ValidateAnswerCoverage(answers, expectedWordIDs); err != nil {
+		return nil, err
 	}
 
-	seenWordIDs := make(map[int64]bool, len(answers))
 	correctCount := 0
 	for _, answer := range answers {
-		correctIndex, ok := correctIndexes[answer.WordID]
-		if !ok || seenWordIDs[answer.WordID] || answer.SelectedIndex < 0 || answer.SelectedIndex > 3 {
-			return nil, domain.ErrInvalidAnswers
-		}
-		seenWordIDs[answer.WordID] = true
+		correctIndex := correctIndexes[answer.WordID]
 		if answer.SelectedIndex == correctIndex {
 			correctCount++
 		}
@@ -414,7 +415,7 @@ func (store *Store) SubmitAnswers(ctx context.Context, attemptID int64, answers 
 	}
 
 	// 第四步：计算正确数和估算词汇量。
-	estimatedVocabulary := int(math.Round(float64(correctCount) / float64(questionCount) * float64(totalWords)))
+	estimatedVocabulary := domain.EstimateVocabulary(correctCount, questionCount, totalWords)
 
 	// 第五步：写入成绩和完成时间。
 	var completionTime time.Time

@@ -18,8 +18,8 @@ func NewTestService(repo TestRepository) *TestService {
 
 // Create 创建一场测试并抽题。
 func (service *TestService) Create(ctx context.Context, count int) (*domain.Test, error) {
-	if count < 1 || count > 100 {
-		return nil, &domain.ValidationError{Message: "count must be between 1 and 100"}
+	if err := domain.ValidateQuestionCount(count); err != nil {
+		return nil, err
 	}
 	return service.repo.CreateTest(ctx, count)
 }
@@ -31,12 +31,8 @@ func (service *TestService) Get(ctx context.Context, id int64) (*domain.Test, er
 
 // Submit 校验答案并判分。
 func (service *TestService) Submit(ctx context.Context, id int64, answers []domain.Answer) (*domain.Test, error) {
-	seenWordIDs := make(map[int64]bool, len(answers))
-	for _, answer := range answers {
-		if answer.SelectedIndex < 0 || answer.SelectedIndex > 3 || seenWordIDs[answer.WordID] {
-			return nil, domain.ErrInvalidAnswers
-		}
-		seenWordIDs[answer.WordID] = true
+	if err := domain.ValidateAnswerShape(answers); err != nil {
+		return nil, err
 	}
 	return service.repo.SubmitAnswers(ctx, id, answers)
 }
