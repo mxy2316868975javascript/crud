@@ -20,17 +20,31 @@ cmd/
   openapi3/            Swagger 2.0 -> OpenAPI 3.0
 internal/
   config/              环境变量
-  domain/              领域模型、纯规则与错误
-  repository/postgres/ SQL、事务、schema、批量导入
-  service/             用例编排、仓储接口
   httpapi/             handler、DTO、路由、Swagger 注解
   httpapi/docs/        生成的 swagger.json / openapi.json / docs.html
+  domain/              领域模型、纯规则与错误
+  service/             用例编排、仓储接口
+  repository/
+    postgres/          SQL、事务、schema、批量导入
   seed/                内嵌 cet4.csv 与解析
   integration/         黑盒集成测试
 docker/                PostgreSQL 初始化脚本
 ```
 
 依赖方向：`httpapi → service → domain`，`repository/postgres` 实现 `service` 的仓储接口；`cmd` 只负责装配。
+
+Git 不保存目录顺序，Finder/VS Code 只会按名称排。要看执行顺序，用下面这份清单：
+
+1. `cmd/api/main.go`
+2. `internal/config/config.go`
+3. `internal/httpapi/router.go`
+4. `internal/httpapi/words.go`、`tests.go`
+5. `internal/httpapi/dto.go`、`json.go`、`errors.go`
+6. `internal/domain/word.go`、`test.go`
+7. `internal/service/word.go`、`test.go`
+8. `internal/repository/postgres/store.go`、`schema.go`
+9. `cmd/seed/main.go`、`internal/seed/seed.go`
+10. `internal/integration/api_test.go`
 
 没有前端页面。调接口先用 `/docs` 的 Swagger UI，或 [docs/requests.http](docs/requests.http) 里的请求。
 
